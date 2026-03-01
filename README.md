@@ -1,20 +1,17 @@
-# Cauchy Mean Paradox Dashboard
+# Interesting Distribution Properties Dashboard
 
-A Streamlit dashboard that demonstrates a subtle but important statistical fact:
-
-- For **Normal(0,1)** data, sample means stabilize near 0 as sample size increases.
-- For **Cauchy(0,1)** data, sample means do **not** stabilize; the average remains Cauchy-distributed.
+A Streamlit dashboard with separate mini-presentations, each focused on a distinct statistical property.
 
 ## What the app shows
 
 Numbered, separate presentations:
 
 1. **Cauchy: Mean Paradox**  
-   Sample mean does not stabilize; tail probability stays roughly invariant in `n`.
-2. **Dirichlet: Bounded Concentration**  
-   Uses a centered component from symmetric Dirichlet and shows concentration as `n` grows.
-3. **Normal: CLT Baseline**  
-   Demonstrates classic averaging behavior and `1/sqrt(n)` scaling.
+   Sample mean remains heavy-tailed and does not stabilize with larger sample size.
+2. **Dirichlet: Simplex & Dependence**  
+   Shows simplex constraint, negative component correlation, and alpha-controlled sparsity.
+3. **Normal: Chi-square Geometry**  
+   Demonstrates that the sum of squared standard normals follows a Chi-square law.
 
 The app includes memory-safe simulation caps for Streamlit Community Cloud.
 
@@ -35,4 +32,8 @@ streamlit run app.py
 
 ## Why this is interesting
 
-Many people assume averaging always reduces noise. That is true for many distributions with finite variance, but false for heavy-tailed distributions like Cauchy.
+It contrasts three different kinds of behavior:
+
+- Heavy tails that break averaging intuition (Cauchy),
+- Compositional dependence and sparsity control (Dirichlet),
+- Exact geometric distribution identities (Normal to Chi-square).
