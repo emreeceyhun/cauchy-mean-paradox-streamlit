@@ -17,6 +17,15 @@ This is a concrete example of a stable law: Cauchy averages stay Cauchy.
 """
 )
 
+st.info(
+    """
+### What this dashboard demonstrates
+1. **Averages can fail**: For Cauchy data, the sample mean does not become stable as sample size grows.
+2. **Tail probability is invariant in n**: `P(|sample mean| > k)` stays roughly constant for Cauchy means.
+3. **Robust estimator wins**: For Cauchy data, the sample median becomes much tighter than the sample mean.
+"""
+)
+
 MAX_MAIN_DRAWS_PER_PARENT = 8_000_000
 MAX_GRID_DRAWS_PER_PARENT = 10_000_000
 
@@ -139,6 +148,15 @@ tab_a, tab_b, tab_c = st.tabs(
 )
 
 with tab_a:
+    st.markdown(
+        """
+**How to read this panel**
+- Blue (Normal means) should squeeze toward 0 as `n` increases.
+- Red (Cauchy means) keeps wide tails even for large `n`.
+- `P(|.| > k)` on the right quantifies this contrast.
+"""
+    )
+
     plot_df = pd.DataFrame(
         {
             "estimate": np.concatenate([normal_means, cauchy_means]),
@@ -213,6 +231,15 @@ with tab_a:
         )
 
 with tab_b:
+    st.markdown(
+        """
+**How to read this panel**
+- If averaging worked for Cauchy, the red line would fall with `n`.
+- Instead, the red line stays near a constant level (the dashed theoretical line).
+- The blue Normal line drops toward 0.
+"""
+    )
+
     theoretical_cauchy_tail = 1.0 - (2.0 / np.pi) * np.arctan(threshold)
     tail_fig = px.line(
         trend_df,
@@ -241,6 +268,15 @@ with tab_b:
     )
 
 with tab_c:
+    st.markdown(
+        """
+**How to read this panel**
+- Red line: spread of Cauchy sample mean (stays large).
+- Green line: spread of Cauchy sample median (shrinks with `n`).
+- This shows why robust estimators are preferable for heavy tails.
+"""
+    )
+
     robust_fig = px.line(
         robust_df,
         x="n",
