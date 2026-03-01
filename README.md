@@ -12,6 +12,8 @@ Numbered, separate presentations:
    Shows simplex constraint, negative component correlation, and alpha-controlled sparsity.
 3. **Normal: Chi-square Geometry**  
    Demonstrates that the sum of squared standard normals follows a Chi-square law.
+4. **Laplace: L1 Geometry**  
+   Shows that Laplace location MLE corresponds to minimizing absolute error (sample median), with robustness implications.
 
 The app includes memory-safe simulation caps for Streamlit Community Cloud.
 
@@ -36,4 +38,5 @@ It contrasts three different kinds of behavior:
 
 - Heavy tails that break averaging intuition (Cauchy),
 - Compositional dependence and sparsity control (Dirichlet),
-- Exact geometric distribution identities (Normal to Chi-square).
+- Exact geometric distribution identities (Normal to Chi-square),
+- L1-driven robust location estimation (Laplace).
