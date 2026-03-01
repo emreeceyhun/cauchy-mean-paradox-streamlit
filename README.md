@@ -5,6 +5,13 @@ A Streamlit dashboard that demonstrates a subtle but important statistical fact:
 - For **Normal(0,1)** data, sample means stabilize near 0 as sample size increases.
 - For **Cauchy(0,1)** data, sample means do **not** stabilize; the average remains Cauchy-distributed.
 
+## What the app shows
+
+- **Mean Distribution tab**: overlay histograms of sample means (Normal vs Cauchy).
+- **Tail Invariance Across n tab**: empirical `P(|sample mean| > k)` across multiple `n` values plus the Cauchy theoretical line.
+- **Robust Alternative tab**: compares Cauchy sample mean vs sample median using estimator IQR.
+- Built-in simulation caps prevent memory blowups on Streamlit Community Cloud.
+
 ## Run locally
 
 ```bash
