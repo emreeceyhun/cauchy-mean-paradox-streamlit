@@ -295,6 +295,8 @@ with tab_dirichlet:
 - Components are negatively dependent; for symmetric Dirichlet, 
   $\mathrm{{Corr}}(X_1, X_2) = -1/(d-1)$.
 - The concentration parameter $\alpha$ controls corner-vs-center behavior.
+- ML implication: in document/topic classification, Dirichlet priors encode competition between class probabilities,
+  so increasing belief in one class necessarily decreases belief in others.
 
 Current parameters: `d={dirichlet_d}`, `alpha={dirichlet_alpha:.2f}`.
 """
