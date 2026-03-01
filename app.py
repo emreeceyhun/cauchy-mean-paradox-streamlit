@@ -22,7 +22,8 @@ st.info(
 ### What this dashboard demonstrates
 1. **Averages can fail**: For Cauchy data, the sample mean does not become stable as sample size grows.
 2. **Tail probability is invariant in n**: `P(|sample mean| > k)` stays roughly constant for Cauchy means.
-3. **Robust estimator wins**: For Cauchy data, the sample median becomes much tighter than the sample mean.
+3. **Additional baselines**: You can add a centered Dirichlet component to compare against a bounded distribution.
+4. **Robust estimator wins**: For Cauchy data, the sample median becomes much tighter than the sample mean.
 """
 )
 
@@ -34,7 +35,7 @@ with st.sidebar:
     sample_size = st.slider("Sample size per experiment (n)", 1, 5000, 120, step=1)
     n_experiments = st.slider("Repeated experiments", 200, 30000, 6000, step=200)
     display_clip = st.slider("Histogram x-clip (readability)", 2.0, 80.0, 20.0, step=0.5)
-    threshold = st.slider("Tail threshold k for P(|estimate| > k)", 0.5, 10.0, 1.0, step=0.1)
+    threshold = st.slider("Tail threshold k for P(|estimate| > k)", 0.01, 10.0, 0.5, step=0.01)
     bins = st.slider("Histogram bins", 20, 220, 120, step=5)
     grid_experiments = st.slider("Experiments per n in trend plots", 300, 7000, 2000, step=100)
     selected_n = st.multiselect(
@@ -42,6 +43,13 @@ with st.sidebar:
         options=[1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000],
         default=[1, 5, 20, 100, 500, 2000],
     )
+    include_dirichlet = st.checkbox("Include Dirichlet component (centered)", value=True)
+    if include_dirichlet:
+        dirichlet_dim = st.slider("Dirichlet dimension d", 2, 20, 5, step=1)
+        dirichlet_alpha = st.slider("Dirichlet alpha (symmetric)", 0.1, 5.0, 0.7, step=0.1)
+    else:
+        dirichlet_dim = 5
+        dirichlet_alpha = 1.0
     seed = st.number_input("Random seed", min_value=0, max_value=10_000_000, value=42, step=1)
 
 if not selected_n:
@@ -72,11 +80,22 @@ def run_simulation(
     n_values: tuple[int, ...],
     trend_m: int,
     tail_threshold: float,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, pd.DataFrame, pd.DataFrame]:
+    include_dirichlet_dist: bool,
+    dirichlet_d: int,
+    dirichlet_a: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, pd.DataFrame, pd.DataFrame]:
     rng = np.random.default_rng(seed_value)
 
     normal_main = rng.normal(size=(main_m, n))
     cauchy_main = rng.standard_cauchy(size=(main_m, n))
+    dirichlet_center = 1.0 / dirichlet_d
+    if include_dirichlet_dist:
+        dirichlet_main = (
+            rng.beta(dirichlet_a, (dirichlet_d - 1) * dirichlet_a, size=(main_m, n)) - dirichlet_center
+        )
+        dirichlet_means = dirichlet_main.mean(axis=1)
+    else:
+        dirichlet_means = np.empty(0, dtype=float)
 
     normal_means = normal_main.mean(axis=1)
     cauchy_means = cauchy_main.mean(axis=1)
@@ -106,6 +125,18 @@ def run_simulation(
                 "tail_prob": float(np.mean(np.abs(cauchy_mean) > tail_threshold)),
             }
         )
+        if include_dirichlet_dist:
+            dirichlet = (
+                rng.beta(dirichlet_a, (dirichlet_d - 1) * dirichlet_a, size=(trend_m, n_value)) - dirichlet_center
+            )
+            dirichlet_mean = dirichlet.mean(axis=1)
+            trend_rows.append(
+                {
+                    "n": n_value,
+                    "distribution": "Dirichlet component (centered)",
+                    "tail_prob": float(np.mean(np.abs(dirichlet_mean) > tail_threshold)),
+                }
+            )
         robust_rows.append(
             {
                 "n": n_value,
@@ -125,18 +156,22 @@ def run_simulation(
         normal_means,
         cauchy_means,
         cauchy_medians,
+        dirichlet_means,
         pd.DataFrame(trend_rows),
         pd.DataFrame(robust_rows),
     )
 
 
-normal_means, cauchy_means, cauchy_medians, trend_df, robust_df = run_simulation(
+normal_means, cauchy_means, cauchy_medians, dirichlet_means, trend_df, robust_df = run_simulation(
     seed_value=int(seed),
     n=sample_size,
     main_m=effective_experiments,
     n_values=tuple(sorted(set(selected_n))),
     trend_m=effective_grid_experiments,
     tail_threshold=threshold,
+    include_dirichlet_dist=include_dirichlet,
+    dirichlet_d=dirichlet_dim,
+    dirichlet_a=dirichlet_alpha,
 )
 
 tab_a, tab_b, tab_c = st.tabs(
@@ -153,14 +188,23 @@ with tab_a:
 **How to read this panel**
 - Blue (Normal means) should squeeze toward 0 as `n` increases.
 - Red (Cauchy means) keeps wide tails even for large `n`.
+- Orange (Dirichlet centered component, if enabled) is bounded and concentrates quickly.
 - `P(|.| > k)` on the right quantifies this contrast.
 """
     )
 
+    main_plot_values = [normal_means, cauchy_means]
+    main_plot_labels = ["Normal parent", "Cauchy parent"]
+    if include_dirichlet:
+        main_plot_values.append(dirichlet_means)
+        main_plot_labels.append("Dirichlet component (centered)")
+
     plot_df = pd.DataFrame(
         {
-            "estimate": np.concatenate([normal_means, cauchy_means]),
-            "distribution": ["Normal parent"] * len(normal_means) + ["Cauchy parent"] * len(cauchy_means),
+            "estimate": np.concatenate(main_plot_values),
+            "distribution": np.concatenate(
+                [np.repeat(label, len(values)) for label, values in zip(main_plot_labels, main_plot_values)]
+            ),
         }
     )
     plot_df_clipped = plot_df[plot_df["estimate"].between(-display_clip, display_clip)]
@@ -176,24 +220,42 @@ with tab_a:
             opacity=0.65,
             histnorm="probability density",
             marginal="box",
-            color_discrete_map={"Normal parent": "#1f77b4", "Cauchy parent": "#d62728"},
+            color_discrete_map={
+                "Normal parent": "#1f77b4",
+                "Cauchy parent": "#d62728",
+                "Dirichlet component (centered)": "#ff7f0e",
+            },
         )
         fig.update_layout(legend_title_text="", xaxis_title="Sample mean", yaxis_title="Density")
         st.plotly_chart(fig, use_container_width=True)
 
     with right:
         st.subheader("Quick Stats")
-        st.metric("P(|Normal mean| > k)", f"{np.mean(np.abs(normal_means) > threshold):.4f}")
-        st.metric("P(|Cauchy mean| > k)", f"{np.mean(np.abs(cauchy_means) > threshold):.4f}")
-        st.metric(
-            "Cauchy points clipped",
-            f"{100 * np.mean(np.abs(cauchy_means) > display_clip):.2f}%",
-            help="Share of Cauchy sample means outside the displayed histogram range.",
-        )
-        st.metric(
-            "Normal points clipped",
-            f"{100 * np.mean(np.abs(normal_means) > display_clip):.4f}%",
-            help="Share of Normal sample means outside the displayed histogram range.",
+        stat_rows = [
+            {
+                "Distribution": "Normal parent",
+                f"P(|mean|>{threshold})": float(np.mean(np.abs(normal_means) > threshold)),
+                "% clipped": float(100 * np.mean(np.abs(normal_means) > display_clip)),
+            },
+            {
+                "Distribution": "Cauchy parent",
+                f"P(|mean|>{threshold})": float(np.mean(np.abs(cauchy_means) > threshold)),
+                "% clipped": float(100 * np.mean(np.abs(cauchy_means) > display_clip)),
+            },
+        ]
+        if include_dirichlet:
+            stat_rows.append(
+                {
+                    "Distribution": "Dirichlet component (centered)",
+                    f"P(|mean|>{threshold})": float(np.mean(np.abs(dirichlet_means) > threshold)),
+                    "% clipped": float(100 * np.mean(np.abs(dirichlet_means) > display_clip)),
+                }
+            )
+        stat_df = pd.DataFrame(stat_rows)
+        st.dataframe(
+            stat_df.style.format({f"P(|mean|>{threshold})": "{:.4f}", "% clipped": "{:.4f}"}),
+            use_container_width=True,
+            hide_index=True,
         )
 
         summary_df = pd.DataFrame(
@@ -210,13 +272,40 @@ with tab_a:
                     "IQR": float(np.quantile(cauchy_means, 0.75) - np.quantile(cauchy_means, 0.25)),
                     f"P(|.|>{threshold})": float(np.mean(np.abs(cauchy_means) > threshold)),
                 },
-                {
-                    "Estimator": "Cauchy sample median",
-                    "Median": float(np.median(cauchy_medians)),
-                    "IQR": float(np.quantile(cauchy_medians, 0.75) - np.quantile(cauchy_medians, 0.25)),
-                    f"P(|.|>{threshold})": float(np.mean(np.abs(cauchy_medians) > threshold)),
-                },
             ]
+        )
+        if include_dirichlet:
+            summary_df = pd.concat(
+                [
+                    summary_df,
+                    pd.DataFrame(
+                        [
+                            {
+                                "Estimator": "Dirichlet component mean (centered)",
+                                "Median": float(np.median(dirichlet_means)),
+                                "IQR": float(np.quantile(dirichlet_means, 0.75) - np.quantile(dirichlet_means, 0.25)),
+                                f"P(|.|>{threshold})": float(np.mean(np.abs(dirichlet_means) > threshold)),
+                            }
+                        ]
+                    ),
+                ],
+                ignore_index=True,
+            )
+        summary_df = pd.concat(
+            [
+                summary_df,
+                pd.DataFrame(
+                    [
+                        {
+                            "Estimator": "Cauchy sample median",
+                            "Median": float(np.median(cauchy_medians)),
+                            "IQR": float(np.quantile(cauchy_medians, 0.75) - np.quantile(cauchy_medians, 0.25)),
+                            f"P(|.|>{threshold})": float(np.mean(np.abs(cauchy_medians) > threshold)),
+                        }
+                    ]
+                ),
+            ],
+            ignore_index=True,
         )
         st.dataframe(
             summary_df.style.format(
@@ -237,6 +326,7 @@ with tab_b:
 - If averaging worked for Cauchy, the red line would fall with `n`.
 - Instead, the red line stays near a constant level (the dashed theoretical line).
 - The blue Normal line drops toward 0.
+- The orange Dirichlet line (if enabled) also drops toward 0.
 """
     )
 
@@ -248,7 +338,11 @@ with tab_b:
         color="distribution",
         markers=True,
         log_x=True,
-        color_discrete_map={"Normal parent": "#1f77b4", "Cauchy parent": "#d62728"},
+        color_discrete_map={
+            "Normal parent": "#1f77b4",
+            "Cauchy parent": "#d62728",
+            "Dirichlet component (centered)": "#ff7f0e",
+        },
     )
     tail_fig.add_hline(
         y=theoretical_cauchy_tail,
@@ -320,3 +414,18 @@ st.markdown(
 - In contrast, Normal means obey concentration and shrink as $n$ grows.
 """
 )
+
+if include_dirichlet:
+    dirichlet_var = (dirichlet_dim - 1) / (dirichlet_dim**2 * (dirichlet_dim * dirichlet_alpha + 1))
+    st.markdown(
+        rf"""
+### Dirichlet note
+
+For symmetric $\mathrm{{Dir}}(\alpha,\dots,\alpha)$ with dimension $d={dirichlet_dim}$:
+
+- A single component satisfies $X_1 \sim \mathrm{{Beta}}(\alpha, (d-1)\alpha)$.
+- This app centers it as $X_1 - 1/d$ so the expected value is 0.
+- Its variance is finite, $\mathrm{{Var}}(X_1)=\frac{{d-1}}{{d^2(d\alpha+1)}}\approx {dirichlet_var:.5f}$,
+  so sample means concentrate with larger $n$.
+"""
+    )
