@@ -396,8 +396,9 @@ with tab_laplace:
 - For Laplace location models, maximizing likelihood is equivalent to minimizing absolute error.
 - Therefore the location MLE is the sample **median** (L1 geometry), not the sample mean.
 - This is why L1-based methods are more robust to outliers than L2 methods.
-- Regression implication: Laplace priors induce L1 regularization (Lasso), which is especially useful in
-  high-dimensional settings like `len(X) > len(y)` where sparsity/feature selection is needed.
+- Regression implication: Under MAP estimation, a Laplace prior on regression coefficients yields L1 regularization
+  (Lasso). The resulting estimator often produces sparse coefficient vectors, which is useful in high-dimensional
+  problems such as `p > n`.
 
 Current parameters: `n={laplace_n}`, `b={laplace_scale:.2f}`, contamination={laplace_contam_frac:.2f}, outlier size={laplace_outlier_size:.1f}.
 """
