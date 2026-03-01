@@ -7,10 +7,16 @@ A Streamlit dashboard that demonstrates a subtle but important statistical fact:
 
 ## What the app shows
 
-- **Mean Distribution tab**: overlay histograms of sample means (Normal vs Cauchy).
-- **Tail Invariance Across n tab**: empirical `P(|sample mean| > k)` across multiple `n` values plus the Cauchy theoretical line.
-- **Robust Alternative tab**: compares Cauchy sample mean vs sample median using estimator IQR.
-- Built-in simulation caps prevent memory blowups on Streamlit Community Cloud.
+Numbered, separate presentations:
+
+1. **Cauchy: Mean Paradox**  
+   Sample mean does not stabilize; tail probability stays roughly invariant in `n`.
+2. **Dirichlet: Bounded Concentration**  
+   Uses a centered component from symmetric Dirichlet and shows concentration as `n` grows.
+3. **Normal: CLT Baseline**  
+   Demonstrates classic averaging behavior and `1/sqrt(n)` scaling.
+
+The app includes memory-safe simulation caps for Streamlit Community Cloud.
 
 ## Run locally
 
