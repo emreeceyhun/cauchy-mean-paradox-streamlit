@@ -1,5 +1,3 @@
-import math
-
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -15,8 +13,7 @@ Each presentation focuses on a **different** property:
 
 1. **Cauchy**: sample mean paradox (mean does not stabilize).
 2. **Dirichlet**: simplex tradeoff and negative dependence between components.
-3. **Normal**: squared Euclidean norm follows a Chi-square law.
-4. **Laplace**: L1 geometry, where median is the location MLE.
+3. **Laplace**: L1 geometry, where median is the location MLE.
 """
 )
 
@@ -49,11 +46,6 @@ with st.sidebar:
     dirichlet_points = st.slider("Dirichlet points shown", 400, 6000, 2500, step=100)
 
     st.divider()
-    st.subheader("Normal Controls")
-    normal_k = st.slider("Normal dimension k (for sum of squares)", 1, 40, 6, step=1)
-    normal_bins = st.slider("Normal histogram bins", 20, 220, 100, step=5)
-
-    st.divider()
     st.subheader("Laplace Controls")
     laplace_n = st.slider("Laplace sample size (n)", 20, 5000, 180, step=10)
     laplace_scale = st.slider("Laplace scale b", 0.2, 5.0, 1.0, step=0.1)
@@ -69,7 +61,6 @@ if not cauchy_n_grid:
 cauchy_n_values = tuple(sorted(set(cauchy_n_grid)))
 
 cauchy_main_m = min(n_experiments, MAX_MAIN_DRAWS // max(cauchy_n, 1))
-normal_main_m = min(n_experiments, MAX_MAIN_DRAWS // max(normal_k, 1))
 dirichlet_main_m = min(n_experiments, MAX_MAIN_DRAWS // max(dirichlet_d, 1))
 laplace_main_m = min(n_experiments, MAX_MAIN_DRAWS // max(laplace_n, 1))
 
@@ -78,11 +69,6 @@ cauchy_grid_m = min(cauchy_grid_experiments, MAX_GRID_DRAWS // max(sum(cauchy_n_
 if cauchy_main_m < n_experiments:
     st.warning(
         f"Cauchy main simulation reduced to {cauchy_main_m:,} experiments for memory safety "
-        f"(requested {n_experiments:,})."
-    )
-if normal_main_m < n_experiments:
-    st.info(
-        f"Normal main simulation reduced to {normal_main_m:,} experiments for memory safety "
         f"(requested {n_experiments:,})."
     )
 if dirichlet_main_m < n_experiments:
@@ -197,13 +183,6 @@ def simulate_dirichlet(
 
 
 @st.cache_data(show_spinner=False)
-def simulate_normal_chisq(seed_value: int, k: int, draws: int) -> np.ndarray:
-    rng = np.random.default_rng(seed_value)
-    z = rng.normal(size=(draws, k))
-    return np.sum(z**2, axis=1)
-
-
-@st.cache_data(show_spinner=False)
 def simulate_laplace(
     seed_value: int,
     n: int,
@@ -233,11 +212,6 @@ def simulate_laplace(
     return means, medians, ref_sample, theta_grid, l1_vals, l2_vals
 
 
-def chi_square_pdf(x: np.ndarray, k: int) -> np.ndarray:
-    coeff = 1.0 / ((2.0 ** (k / 2.0)) * math.gamma(k / 2.0))
-    return coeff * np.power(x, (k / 2.0) - 1.0) * np.exp(-x / 2.0)
-
-
 cauchy_means, cauchy_medians, cauchy_tail_df, cauchy_robust_df = simulate_cauchy(
     seed_value=int(seed),
     n=cauchy_n,
@@ -255,10 +229,9 @@ dirichlet_df, dir_emp_corr, dir_theory_corr, dir_sum_error, dir_profile_df = sim
     alpha_grid=tuple(ALPHA_GRID.tolist()),
 )
 
-normal_r2 = simulate_normal_chisq(seed_value=int(seed) + 202, k=normal_k, draws=normal_main_m)
 laplace_means, laplace_medians, laplace_ref_sample, laplace_theta_grid, laplace_l1_vals, laplace_l2_vals = (
     simulate_laplace(
-        seed_value=int(seed) + 303,
+        seed_value=int(seed) + 202,
         n=laplace_n,
         draws=laplace_main_m,
         scale=laplace_scale,
@@ -267,12 +240,11 @@ laplace_means, laplace_medians, laplace_ref_sample, laplace_theta_grid, laplace_
     )
 )
 
-tab_cauchy, tab_dirichlet, tab_normal, tab_laplace = st.tabs(
+tab_cauchy, tab_dirichlet, tab_laplace = st.tabs(
     [
         "1) Cauchy: Mean Paradox",
         "2) Dirichlet: Simplex & Dependence",
-        "3) Normal: Chi-square Geometry",
-        "4) Laplace: L1 Geometry",
+        "3) Laplace: L1 Geometry",
     ]
 )
 
@@ -416,55 +388,8 @@ Current parameters: `d={dirichlet_d}`, `alpha={dirichlet_alpha:.2f}`.
     entropy_fig.update_layout(xaxis_title="alpha (log scale)", yaxis_title="Median entropy")
     st.plotly_chart(entropy_fig, use_container_width=True)
 
-with tab_normal:
-    st.subheader("Presentation 3: Normal Distribution")
-    st.markdown(
-        rf"""
-**Interesting property**
-If $Z_1,\ldots,Z_k$ are i.i.d. $\mathcal{{N}}(0,1)$, then
-$\sum_{{i=1}}^k Z_i^2 \sim \chi^2_k$.
-
-Here `k={normal_k}`.
-"""
-    )
-
-    x_max = float(np.percentile(normal_r2, 99.8))
-    x_grid = np.linspace(1e-4, max(x_max, 1.0), 400)
-    pdf_grid = chi_square_pdf(x_grid, normal_k)
-
-    hist = go.Histogram(
-        x=normal_r2,
-        histnorm="probability density",
-        nbinsx=normal_bins,
-        name="Simulated sum of squares",
-        marker_color="#1f77b4",
-        opacity=0.65,
-    )
-    pdf_line = go.Scatter(
-        x=x_grid,
-        y=pdf_grid,
-        mode="lines",
-        name="Chi-square pdf",
-        line=dict(color="#d62728", width=3),
-    )
-
-    fig = go.Figure(data=[hist, pdf_line])
-    fig.update_layout(
-        title="Normal geometry: squared norm distribution",
-        xaxis_title=r"Value of sum(Z_i^2)",
-        yaxis_title="Density",
-        barmode="overlay",
-    )
-    st.plotly_chart(fig, use_container_width=True)
-
-    n1, n2, n3, n4 = st.columns(4)
-    n1.metric("Empirical mean", f"{np.mean(normal_r2):.4f}")
-    n2.metric("Theory mean", f"{float(normal_k):.4f}")
-    n3.metric("Empirical variance", f"{np.var(normal_r2):.4f}")
-    n4.metric("Theory variance", f"{float(2 * normal_k):.4f}")
-
 with tab_laplace:
-    st.subheader("Presentation 4: Laplace Distribution")
+    st.subheader("Presentation 3: Laplace Distribution")
     st.markdown(
         rf"""
 **Interesting property**
