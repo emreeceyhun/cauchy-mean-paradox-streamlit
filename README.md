@@ -12,8 +12,6 @@ Numbered, separate presentations:
    Shows simplex constraint, negative component correlation, and alpha-controlled sparsity.
 3. **Normal: Chi-square Geometry**  
    Demonstrates that the sum of squared standard normals follows a Chi-square law.
-4. **Dirichlet for Document Classification**  
-   Generates synthetic bag-of-words documents from Dirichlet topic mixtures and shows how alpha affects classifier accuracy.
 
 The app includes memory-safe simulation caps for Streamlit Community Cloud.
 
@@ -38,5 +36,4 @@ It contrasts three different kinds of behavior:
 
 - Heavy tails that break averaging intuition (Cauchy),
 - Compositional dependence and sparsity control (Dirichlet),
-- Exact geometric distribution identities (Normal to Chi-square),
-- Topic-mixture effects on classification separability (Dirichlet for documents).
+- Exact geometric distribution identities (Normal to Chi-square).
